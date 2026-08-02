@@ -9,6 +9,8 @@ activityCompose = "1.13.0"
 kotlin = "2.2.10"
 ksp = "2.2.10-2.0.2"
 composeBom = "2026.04.01"
+hilt = "2.60.1"
+google-services = "4.4.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -31,4 +33,6 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 
