@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.tinderclone.R
 import com.example.tinderclone.model.TinderProfile
-import com.example.tinderclone.ui.auth.CommonProgressSpinner
+import com.example.tinderclone.ui.components.CommonProgressSpinner
 import com.example.tinderclone.ui.components.TinderCard
 import com.example.tinderclone.viewmodel.TCViewModel
 import kotlinx.coroutines.delay
@@ -34,13 +34,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun SwipeScreen(vm: TCViewModel) {
     LaunchedEffect(Unit) {
-
-        if (vm.isFirstTime.value) {
+        // Only show the delay/spinner if it's NOT the first time entering (after login/signup)
+        if (!vm.isFirstTime.value) {
             vm.inProgress.value = true
             delay(1500)
             vm.inProgress.value = false
         }
-
+        // After the first check (or first entry), set isFirstTime to false for subsequent navigations
         vm.isFirstTime.value = false
     }
 

@@ -60,6 +60,8 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.4.0")
     ksp("com.google.dagger:hilt-android-compiler:2.60.1")
 
+    implementation("com.github.stevdza-san:MessageBarCompose:1.0.8")
+
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

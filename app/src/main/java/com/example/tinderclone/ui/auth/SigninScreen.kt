@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,19 +29,26 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.tinderclone.R
 import com.example.tinderclone.navigation.Screen
+import com.example.tinderclone.ui.components.CommonProgressSpinner
 import com.example.tinderclone.viewmodel.TCViewModel
+import com.stevdzasan.messagebar.ContentWithMessageBar
+import com.stevdzasan.messagebar.rememberMessageBarState
 import kotlinx.coroutines.delay
 
 @Composable
 fun SigninScreen(navController: NavController, vm: TCViewModel) {
+    val messageBarState = rememberMessageBarState()
+
     LaunchedEffect(Unit) {
         vm.inProgress.value = true
         delay(1500)
         vm.inProgress.value = false
     }
 
-    if (vm.inProgress.value) {
-        CommonProgressSpinner()
+    LaunchedEffect(Unit) {
+        vm.errorFlow.collect { ex ->
+            messageBarState.addError(ex)
+        }
     }
 
     if (vm.signedIn.value) {
@@ -51,70 +57,75 @@ fun SigninScreen(navController: NavController, vm: TCViewModel) {
         }
     }
 
-    if (!vm.inProgress.value) {
+    ContentWithMessageBar(messageBarState = messageBarState) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .verticalScroll(rememberScrollState())
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val emailState = remember { mutableStateOf("") }
-                val passState = remember { mutableStateOf("") }
-
-                Image(
-                    painter = painterResource(id = R.drawable.fire),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .width(100.dp)
-                        .padding(top = 16.dp)
-                        .padding(8.dp)
-                )
-
-                Text(
-                    text = "Login",
-                    modifier = Modifier.padding(8.dp),
-                    fontSize = 30.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = emailState.value,
-                    onValueChange = { emailState.value = it },
-                    modifier = Modifier.padding(8.dp),
-                    label = { Text(text = "Email") }
-                )
-
-                OutlinedTextField(
-                    value = passState.value,
-                    onValueChange = { passState.value = it },
-                    modifier = Modifier.padding(8.dp),
-                    label = { Text(text = "Password") }
-                )
-
-                Button(
-                    onClick = {
-                        vm.onSignin(emailState.value, passState.value)
-                    },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text(text = "LOGIN")
-                }
-
-                Text(
-                    text = "New user? Go to signup",
-                    color = Color.Blue,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .clickable {
-                            navController.navigate(Screen.Signup.route)
-                        }
-                )
+            if (vm.inProgress.value) {
+                CommonProgressSpinner()
             }
 
+            if (!vm.inProgress.value) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val emailState = remember { mutableStateOf("") }
+                    val passState = remember { mutableStateOf("") }
+
+                    Image(
+                        painter = painterResource(id = R.drawable.fire),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .width(100.dp)
+                            .padding(top = 16.dp)
+                            .padding(8.dp)
+                    )
+
+                    Text(
+                        text = "Login",
+                        modifier = Modifier.padding(8.dp),
+                        fontSize = 30.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    OutlinedTextField(
+                        value = emailState.value,
+                        onValueChange = { emailState.value = it },
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text(text = "Email") }
+                    )
+
+                    OutlinedTextField(
+                        value = passState.value,
+                        onValueChange = { passState.value = it },
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text(text = "Password") }
+                    )
+
+                    Button(
+                        onClick = {
+                            vm.onSignin(emailState.value, passState.value)
+                        },
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text(text = "LOGIN")
+                    }
+
+                    Text(
+                        text = "New user? Go to signup",
+                        color = Color.Blue,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .clickable {
+                                navController.navigate(Screen.Signup.route)
+                            }
+                    )
+                }
+            }
         }
     }
 }
