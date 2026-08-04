@@ -2,6 +2,7 @@ package com.example.tinderclone.ui.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,14 +52,16 @@ fun SigninScreen(navController: NavController, vm: TCViewModel) {
         }
     }
 
-    if (vm.signedIn.value) {
-        navController.navigate(Screen.Swipe.route) {
-            popUpTo(Screen.Signin.route) { inclusive = true }
+    LaunchedEffect(vm.signedIn.value) {
+        if (vm.signedIn.value) {
+            navController.navigate(Screen.Swipe.route) {
+                popUpTo(Screen.Signin.route) { inclusive = true }
+            }
         }
     }
 
     ContentWithMessageBar(messageBarState = messageBarState) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (vm.inProgress.value) {
                 CommonProgressSpinner()
             }
@@ -66,11 +69,12 @@ fun SigninScreen(navController: NavController, vm: TCViewModel) {
             if (!vm.inProgress.value) {
                 Column(
                     modifier = Modifier
+                        .fillMaxSize()
                         .fillMaxWidth()
                         .wrapContentHeight()
                         .verticalScroll(rememberScrollState())
                         .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     val emailState = remember { mutableStateOf("") }
                     val passState = remember { mutableStateOf("") }
@@ -121,7 +125,10 @@ fun SigninScreen(navController: NavController, vm: TCViewModel) {
                         modifier = Modifier
                             .padding(8.dp)
                             .clickable {
-                                navController.navigate(Screen.Signup.route)
+                                navController.navigate(Screen.Signup.route) {
+                                    popUpTo(Screen.Signin.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
                     )
                 }

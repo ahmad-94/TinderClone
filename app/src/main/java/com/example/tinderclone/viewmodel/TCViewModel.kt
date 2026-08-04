@@ -11,16 +11,23 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.mongodb.client.MongoClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.bson.Document
+import org.bson.types.Binary
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class TCViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val db: FirebaseFirestore
+    private val db: FirebaseFirestore,
+    private val mongoClient: MongoClient
 ) : ViewModel() {
 
     var inProgress = mutableStateOf(false)
@@ -98,6 +105,35 @@ class TCViewModel @Inject constructor(
                 }
                 inProgress.value = false
             }
+    }
+
+    fun uploadImageToMongo(imageBytes: ByteArray, onSuccess: (String) -> Unit) {
+        inProgress.value = true
+        val uid = auth.currentUser?.uid ?: return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val database = mongoClient.getDatabase("tinderclone")
+                val collection = database.getCollection("images")
+                
+                val imageId = UUID.randomUUID().toString()
+                val doc = Document("_id", imageId)
+                    .append("userId", uid)
+                    .append("data", Binary(imageBytes))
+                    .append("createdAt", System.currentTimeMillis())
+                
+                collection.insertOne(doc)
+                
+                withContext(Dispatchers.Main) {
+                    inProgress.value = false
+                    onSuccess(imageId)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onError(e)
+                }
+            }
+        }
     }
 
     fun onLogout() {

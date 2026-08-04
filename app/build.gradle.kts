@@ -38,6 +38,12 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/native-image/**"
+        }
+    }
 }
 
 dependencies {
@@ -66,6 +72,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     
+    implementation(libs.mongodb.driver)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

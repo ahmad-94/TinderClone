@@ -51,14 +51,16 @@ fun SignupScreen(navController: NavController, vm: TCViewModel) {
         }
     }
 
-    if (vm.signedIn.value) {
-        navController.navigate(Screen.Swipe.route) {
-            popUpTo(Screen.Signup.route) { inclusive = true }
+    LaunchedEffect(vm.signedIn.value) {
+        if (vm.signedIn.value) {
+            navController.navigate(Screen.Swipe.route) {
+                popUpTo(Screen.Signup.route) { inclusive = true }
+            }
         }
     }
 
     ContentWithMessageBar(messageBarState = messageBarState) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (vm.inProgress.value) {
                 CommonProgressSpinner()
             }
