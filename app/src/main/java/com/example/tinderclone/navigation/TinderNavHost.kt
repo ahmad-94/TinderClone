@@ -36,7 +36,7 @@ fun TinderNavHost(
             ChatScreen()
         }
         composable(Screen.Profile.route) {
-            ProfileScreen()
+            ProfileScreen(navController, vm)
         }
     }
 }

@@ -72,7 +72,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     
-    implementation(libs.mongodb.driver)
+    implementation(libs.cloudinary)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

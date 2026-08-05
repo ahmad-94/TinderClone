@@ -1,14 +1,13 @@
 package com.example.tinderclone.di
 
+import android.content.Context
+import com.cloudinary.android.MediaManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.mongodb.ConnectionString
-import com.mongodb.MongoClientSettings
-import com.mongodb.client.MongoClient
-import com.mongodb.client.MongoClients
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -26,11 +25,17 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideMongoClient(): MongoClient {
-        val connectionString = ConnectionString("mongodb://shiravandahmad941_db_user:YEtny4AHRxYPSO0H@ac-awsov4e-shard-00-00.kfyemnx.mongodb.net:27017,ac-awsov4e-shard-00-01.kfyemnx.mongodb.net:27017,ac-awsov4e-shard-00-02.kfyemnx.mongodb.net:27017/?ssl=true&replicaSet=atlas-pbtmlo-shard-0&authSource=admin&appName=TinderClone")
-        val settings = MongoClientSettings.builder()
-            .applyConnectionString(connectionString)
-            .build()
-        return MongoClients.create(settings)
+    fun provideCloudinary(@ApplicationContext context: Context): MediaManager {
+        val config = mapOf(
+            "cloud_name" to "eucpvbeo",
+            "api_key" to "217924152998582",
+            "api_secret" to "uWDYYCU6diSrUy_ufkkXJCZEyX0"
+        )
+        try {
+            MediaManager.init(context, config)
+        } catch (_: Exception) {
+            // Already initialized
+        }
+        return MediaManager.get()
     }
 }

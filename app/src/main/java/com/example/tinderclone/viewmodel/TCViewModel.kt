@@ -1,9 +1,14 @@
 package com.example.tinderclone.viewmodel
 
+import android.util.Log
 import android.util.Patterns
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import com.example.tinderclone.model.UserData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -11,28 +16,23 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestore
-import com.mongodb.client.MongoClient
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.bson.Document
-import org.bson.types.Binary
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class TCViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
-    private val mongoClient: MongoClient
+    private val cloudinary: MediaManager
 ) : ViewModel() {
 
     var inProgress = mutableStateOf(false)
     var signedIn = mutableStateOf(false)
     var isFirstTime = mutableStateOf(false)
+    var userData = mutableStateOf<UserData?>(null)
 
     private val _errorFlow = MutableSharedFlow<Exception>()
     val errorFlow = _errorFlow.asSharedFlow()
@@ -40,6 +40,9 @@ class TCViewModel @Inject constructor(
     init {
         val currentUser = auth.currentUser
         signedIn.value = currentUser != null
+        if (signedIn.value) {
+            getUserData(currentUser?.uid)
+        }
     }
 
     fun onSignup(email: String, pass: String) {
@@ -62,13 +65,11 @@ class TCViewModel @Inject constructor(
                 if (task.isSuccessful) {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        val user = hashMapOf(
-                            "email" to email,
-                            "uid" to uid
-                        )
+                        val user = UserData(uid = uid, email = email)
                         db.collection("users").document(uid).set(user)
                             .addOnSuccessListener {
                                 signedIn.value = true
+                                userData.value = user
                                 isFirstTime.value = true 
                                 inProgress.value = false
                             }
@@ -100,6 +101,7 @@ class TCViewModel @Inject constructor(
                 if (task.isSuccessful) {
                     signedIn.value = true
                     isFirstTime.value = true
+                    getUserData(auth.currentUser?.uid)
                 } else {
                     onError(task.exception)
                 }
@@ -107,42 +109,68 @@ class TCViewModel @Inject constructor(
             }
     }
 
-    fun uploadImageToMongo(imageBytes: ByteArray, onSuccess: (String) -> Unit) {
+    private fun getUserData(uid: String?) {
+        if (uid == null) return
+        inProgress.value = true
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                userData.value = document.toObject(UserData::class.java)
+                inProgress.value = false
+            }
+            .addOnFailureListener {
+                onError(it)
+            }
+    }
+
+    fun updateUserData(name: String, username: String, bio: String) {
+        val uid = auth.currentUser?.uid ?: return
+        inProgress.value = true
+        val updateMap = mapOf(
+            "name" to name,
+            "username" to username,
+            "bio" to bio
+        )
+        db.collection("users").document(uid).update(updateMap)
+            .addOnSuccessListener {
+                getUserData(uid)
+            }
+            .addOnFailureListener {
+                onError(it)
+            }
+    }
+
+    fun uploadImage(imageBytes: ByteArray) {
         inProgress.value = true
         val uid = auth.currentUser?.uid ?: return
         
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val database = mongoClient.getDatabase("tinderclone")
-                val collection = database.getCollection("images")
-                
-                val imageId = UUID.randomUUID().toString()
-                val doc = Document("_id", imageId)
-                    .append("userId", uid)
-                    .append("data", Binary(imageBytes))
-                    .append("createdAt", System.currentTimeMillis())
-                
-                collection.insertOne(doc)
-                
-                withContext(Dispatchers.Main) {
+        cloudinary.upload(imageBytes)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String) {}
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                    val imageUrl = resultData["secure_url"] as String
+                    db.collection("users").document(uid).update("imageUrl", imageUrl)
+                        .addOnSuccessListener {
+                            getUserData(uid)
+                        }
                     inProgress.value = false
-                    onSuccess(imageId)
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onError(e)
+                override fun onError(requestId: String, error: ErrorInfo) {
+                    this@TCViewModel.onError(Exception(error.description))
                 }
-            }
-        }
+                override fun onReschedule(requestId: String, error: ErrorInfo) {}
+            })
+            .dispatch()
     }
 
     fun onLogout() {
         auth.signOut()
         signedIn.value = false
+        userData.value = null
     }
 
     private fun onError(exception: Exception?) {
-        android.util.Log.e("TCViewModel", "Authentication Error", exception)
+        Log.e("TCViewModel", "Error", exception)
         val message = when (exception) {
             is FirebaseAuthWeakPasswordException -> "The password is too weak."
             is FirebaseAuthInvalidCredentialsException -> "Invalid email or password format."

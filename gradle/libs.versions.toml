@@ -11,8 +11,7 @@ ksp = "2.2.10-2.0.2"
 composeBom = "2026.04.01"
 hilt = "2.60.1"
 google-services = "4.4.1"
-mongodb = "5.9.1"
-realm = "3.0.0"
+cloudinary = "3.1.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -20,7 +19,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
-mongodb-driver = { group = "org.mongodb", name = "mongodb-driver-sync", version.ref = "mongodb" }
+cloudinary = { group = "com.cloudinary", name = "cloudinary-android", version.ref = "cloudinary" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
