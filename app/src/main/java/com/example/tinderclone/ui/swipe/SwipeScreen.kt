@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,9 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.tinderclone.R
-import com.example.tinderclone.model.TinderProfile
+import androidx.compose.ui.unit.sp
 import com.example.tinderclone.ui.components.CommonProgressSpinner
 import com.example.tinderclone.ui.components.TinderCard
 import com.example.tinderclone.viewmodel.TCViewModel
@@ -33,40 +34,24 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SwipeScreen(vm: TCViewModel) {
+    var profiles by remember { mutableStateOf(vm.cardsData.value) }
+
     LaunchedEffect(Unit) {
-        // Only show the delay/spinner if it's NOT the first time entering (after login/signup)
         if (!vm.isFirstTime.value) {
             vm.inProgress.value = true
             delay(1500)
             vm.inProgress.value = false
         }
-        // After the first check (or first entry), set isFirstTime to false for subsequent navigations
         vm.isFirstTime.value = false
+        vm.getCardsData()
+    }
+
+    LaunchedEffect(vm.cardsData.value) {
+        profiles = vm.cardsData.value
     }
 
     if (vm.inProgress.value) {
         CommonProgressSpinner()
-    }
-
-    var profiles by remember {
-        mutableStateOf(
-            listOf(
-                TinderProfile(
-                    id = "1",
-                    name = "Richard",
-                    age = 28,
-                    bio = "I'm just a guy with a big head.",
-                    imageUrls = listOf(R.drawable.big_head)
-                ),
-                TinderProfile(
-                    id = "2",
-                    name = "Barker",
-                    age = 24,
-                    bio = "Woof woof!",
-                    imageUrls = listOf(R.drawable.barker)
-                )
-            )
-        )
     }
 
     if (!vm.inProgress.value) {
@@ -81,17 +66,26 @@ fun SwipeScreen(vm: TCViewModel) {
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                profiles.reversed().forEach { profile ->
-                    TinderCard(
-                        profile = profile,
-                        onSwipeLeft = {
-                            profiles = profiles.filter { it.id != profile.id }
-                        },
-                        onSwipeRight = {
-                            profiles = profiles.filter { it.id != profile.id }
-                        },
-                        modifier = Modifier.fillMaxSize()
+                if (profiles.isEmpty()) {
+                    Text(
+                        text = "No more profiles!",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
                     )
+                } else {
+                    profiles.reversed().forEach { profile ->
+                        TinderCard(
+                            profile = profile,
+                            onSwipeLeft = {
+                                profiles = profiles.filter { it.id != profile.id }
+                            },
+                            onSwipeRight = {
+                                profiles = profiles.filter { it.id != profile.id }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 
@@ -103,7 +97,11 @@ fun SwipeScreen(vm: TCViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { /* Handle dislike */ },
+                    onClick = { 
+                        if (profiles.isNotEmpty()) {
+                            profiles = profiles.filter { it.id != profiles.last().id }
+                        }
+                    },
                     modifier = Modifier.size(64.dp),
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = Color.White,
@@ -118,7 +116,11 @@ fun SwipeScreen(vm: TCViewModel) {
                 }
 
                 IconButton(
-                    onClick = { /* Handle like */ },
+                    onClick = { 
+                        if (profiles.isNotEmpty()) {
+                            profiles = profiles.filter { it.id != profiles.last().id }
+                        }
+                    },
                     modifier = Modifier.size(64.dp),
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = Color.White,

@@ -1,13 +1,16 @@
 package com.example.tinderclone.viewmodel
 
+import android.os.Build
 import android.util.Log
 import android.util.Patterns
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.tinderclone.model.TinderProfile
 import com.example.tinderclone.model.UserData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
@@ -33,6 +36,7 @@ class TCViewModel @Inject constructor(
     var signedIn = mutableStateOf(false)
     var isFirstTime = mutableStateOf(false)
     var userData = mutableStateOf<UserData?>(null)
+    var cardsData = mutableStateOf<List<TinderProfile>>(listOf())
 
     private val _errorFlow = MutableSharedFlow<Exception>()
     val errorFlow = _errorFlow.asSharedFlow()
@@ -114,7 +118,9 @@ class TCViewModel @Inject constructor(
         inProgress.value = true
         db.collection("users").document(uid).get()
             .addOnSuccessListener { document ->
-                userData.value = document.toObject(UserData::class.java)
+                val data = document.toObject(UserData::class.java)
+                Log.d("TCViewModel", "Fetched User Data: $data")
+                userData.value = data
                 inProgress.value = false
             }
             .addOnFailureListener {
@@ -130,7 +136,8 @@ class TCViewModel @Inject constructor(
             "username" to username,
             "bio" to bio
         )
-        db.collection("users").document(uid).update(updateMap)
+        // Use set with merge instead of update to handle missing documents gracefully
+        db.collection("users").document(uid).set(updateMap, com.google.firebase.firestore.SetOptions.merge())
             .addOnSuccessListener {
                 getUserData(uid)
             }
@@ -143,24 +150,65 @@ class TCViewModel @Inject constructor(
         inProgress.value = true
         val uid = auth.currentUser?.uid ?: return
         
+        Log.d("TCViewModel", "Uploading image to Cloudinary...")
         cloudinary.upload(imageBytes)
             .callback(object : UploadCallback {
-                override fun onStart(requestId: String) {}
+                override fun onStart(requestId: String) {
+                    Log.d("TCViewModel", "Cloudinary upload started: $requestId")
+                }
                 override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
                 override fun onSuccess(requestId: String, resultData: Map<*, *>) {
                     val imageUrl = resultData["secure_url"] as String
-                    db.collection("users").document(uid).update("imageUrl", imageUrl)
+                    Log.d("TCViewModel", "Cloudinary success! URL: $imageUrl")
+                    
+                    // Use set with merge instead of update
+                    val updateMap = mapOf("imageUrl" to imageUrl)
+                    db.collection("users").document(uid).set(updateMap, com.google.firebase.firestore.SetOptions.merge())
                         .addOnSuccessListener {
+                            Log.d("TCViewModel", "Firestore updated with image URL")
                             getUserData(uid)
                         }
-                    inProgress.value = false
+                        .addOnFailureListener { 
+                            Log.e("TCViewModel", "Firestore update failed", it)
+                            inProgress.value = false
+                        }
                 }
                 override fun onError(requestId: String, error: ErrorInfo) {
+                    Log.e("TCViewModel", "Cloudinary error: ${error.description}")
                     this@TCViewModel.onError(Exception(error.description))
                 }
                 override fun onReschedule(requestId: String, error: ErrorInfo) {}
             })
             .dispatch()
+    }
+
+    fun getCardsData() {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            inProgress.value = true
+            db.collection("users").get()
+                .addOnSuccessListener { result ->
+                    val profiles = mutableListOf<TinderProfile>()
+                    for (document in result) {
+                        if (document.id != uid) {
+                            val user = document.toObject(UserData::class.java)
+                            profiles.add(
+                                TinderProfile(
+                                    id = user.uid,
+                                    name = user.name,
+                                    bio = user.bio,
+                                    imageUrl = user.imageUrl
+                                )
+                            )
+                        }
+                    }
+                    cardsData.value = profiles
+                    inProgress.value = false
+                }
+                .addOnFailureListener {
+                    onError(it)
+                }
+        }
     }
 
     fun onLogout() {

@@ -1,6 +1,7 @@
 package com.example.tinderclone.ui.profile
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.tinderclone.navigation.Screen
 import com.example.tinderclone.ui.components.CommonProgressSpinner
 import com.example.tinderclone.viewmodel.TCViewModel
@@ -28,10 +30,10 @@ import com.example.tinderclone.viewmodel.TCViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(navController: NavController, vm: TCViewModel) {
-    val userData = vm.userData.value
-    var name by remember { mutableStateOf(userData?.name ?: "") }
-    var username by remember { mutableStateOf(userData?.username ?: "") }
-    var bio by remember { mutableStateOf(userData?.bio ?: "") }
+    val userData by vm.userData // Use property delegation for better reactivity
+    var name by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
 
     // Sync UI fields with userData changes
     LaunchedEffect(userData) {
@@ -39,12 +41,14 @@ fun ProfileScreen(navController: NavController, vm: TCViewModel) {
             name = it.name ?: ""
             username = it.username ?: ""
             bio = it.bio ?: ""
+            Log.d("ProfileScreen", "UserData updated in UI: ${it.imageUrl}")
         }
     }
 
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { pickedUri ->
+            Log.d("ProfileScreen", "Image picked: $pickedUri")
             val bytes = context.contentResolver.openInputStream(pickedUri)?.readBytes()
             bytes?.let { b ->
                 vm.uploadImage(b)
@@ -88,11 +92,18 @@ fun ProfileScreen(navController: NavController, vm: TCViewModel) {
                 ) {
                     val currentImageUrl = userData?.imageUrl
                     if (!currentImageUrl.isNullOrEmpty()) {
+                        Log.d("ProfileScreen", "Displaying image: $currentImageUrl")
                         AsyncImage(
-                            model = currentImageUrl,
-                            contentDescription = null,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(currentImageUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Profile Picture",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            onLoading = { Log.d("ProfileScreen", "Loading image...") },
+                            onSuccess = { Log.d("ProfileScreen", "Image loaded successfully") },
+                            onError = { Log.e("ProfileScreen", "Image load failed: ${it.result.throwable}") }
                         )
                     } else {
                         Icon(
