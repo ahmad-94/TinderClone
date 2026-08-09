@@ -19,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -37,6 +38,7 @@ class TCViewModel @Inject constructor(
     var isFirstTime = mutableStateOf(false)
     var userData = mutableStateOf<UserData?>(null)
     var cardsData = mutableStateOf<List<TinderProfile>>(listOf())
+    var matchNotification = mutableStateOf<TinderProfile?>(null)
 
     private val _errorFlow = MutableSharedFlow<Exception>()
     val errorFlow = _errorFlow.asSharedFlow()
@@ -136,7 +138,6 @@ class TCViewModel @Inject constructor(
             "username" to username,
             "bio" to bio
         )
-        // Use set with merge instead of update to handle missing documents gracefully
         db.collection("users").document(uid).set(updateMap, com.google.firebase.firestore.SetOptions.merge())
             .addOnSuccessListener {
                 getUserData(uid)
@@ -161,7 +162,6 @@ class TCViewModel @Inject constructor(
                     val imageUrl = resultData["secure_url"] as String
                     Log.d("TCViewModel", "Cloudinary success! URL: $imageUrl")
                     
-                    // Use set with merge instead of update
                     val updateMap = mapOf("imageUrl" to imageUrl)
                     db.collection("users").document(uid).set(updateMap, com.google.firebase.firestore.SetOptions.merge())
                         .addOnSuccessListener {
@@ -186,29 +186,86 @@ class TCViewModel @Inject constructor(
         val uid = auth.currentUser?.uid
         if (uid != null) {
             inProgress.value = true
-            db.collection("users").get()
-                .addOnSuccessListener { result ->
-                    val profiles = mutableListOf<TinderProfile>()
-                    for (document in result) {
-                        if (document.id != uid) {
-                            val user = document.toObject(UserData::class.java)
-                            profiles.add(
-                                TinderProfile(
-                                    id = user.uid,
-                                    name = user.name,
-                                    bio = user.bio,
-                                    imageUrl = user.imageUrl
-                                )
-                            )
+            // First, get the list of users this user has already swiped on
+            db.collection("users").document(uid).collection("swipes").get()
+                .addOnSuccessListener { swipeResult ->
+                    val swipedUserIds = swipeResult.documents.map { it.id }.toSet()
+                    
+                    db.collection("users").get()
+                        .addOnSuccessListener { result ->
+                            val profiles = mutableListOf<TinderProfile>()
+                            for (document in result) {
+                                val userId = document.id
+                                if (userId != uid && !swipedUserIds.contains(userId)) {
+                                    val user = document.toObject(UserData::class.java)
+                                    profiles.add(
+                                        TinderProfile(
+                                            id = userId,
+                                            name = user.name,
+                                            bio = user.bio,
+                                            imageUrl = user.imageUrl
+                                        )
+                                    )
+                                }
+                            }
+                            cardsData.value = profiles
+                            inProgress.value = false
                         }
-                    }
-                    cardsData.value = profiles
-                    inProgress.value = false
+                        .addOnFailureListener {
+                            onError(it)
+                        }
                 }
                 .addOnFailureListener {
                     onError(it)
                 }
         }
+    }
+
+    fun onLike(swipedProfile: TinderProfile) {
+        val uid = auth.currentUser?.uid ?: return
+        val swipedUid = swipedProfile.id
+        if (swipedUid.isNullOrBlank()) return
+
+        // 1. Save the "Like" in the current user's swipes sub-collection
+        val swipeData = mapOf("type" to "LIKE", "timestamp" to FieldValue.serverTimestamp())
+        db.collection("users").document(uid).collection("swipes").document(swipedUid).set(swipeData)
+            .addOnSuccessListener {
+                // 2. Check if the other user already liked us
+                db.collection("users").document(swipedUid).collection("swipes").document(uid).get()
+                    .addOnSuccessListener { document ->
+                        if (document.exists() && document.getString("type") == "LIKE") {
+                            // IT'S A MATCH!
+                            handleMatch(swipedProfile)
+                        }
+                    }
+            }
+    }
+
+    fun onDislike(swipedUid: String) {
+        if (swipedUid.isBlank()) return
+        val uid = auth.currentUser?.uid ?: return
+        val swipeData = mapOf("type" to "DISLIKE", "timestamp" to FieldValue.serverTimestamp())
+        db.collection("users").document(uid).collection("swipes").document(swipedUid).set(swipeData)
+    }
+
+    private fun handleMatch(swipedProfile: TinderProfile) {
+        val uid = auth.currentUser?.uid ?: return
+        val swipedUid = swipedProfile.id ?: return
+        
+        val matchId = if (uid < swipedUid) "${uid}_${swipedUid}" else "${swipedUid}_${uid}"
+        val matchData = mapOf(
+            "users" to listOf(uid, swipedUid),
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+        
+        db.collection("matches").document(matchId).set(matchData)
+            .addOnSuccessListener {
+                matchNotification.value = swipedProfile
+            }
+    }
+
+    fun clearMatchNotification() {
+        matchNotification.value = null
     }
 
     fun onLogout() {

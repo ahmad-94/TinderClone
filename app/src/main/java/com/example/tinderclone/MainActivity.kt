@@ -14,7 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -22,18 +22,28 @@ import androidx.navigation.compose.rememberNavController
 import com.example.tinderclone.navigation.Screen
 import com.example.tinderclone.navigation.TinderNavHost
 import com.example.tinderclone.ui.theme.TinderCloneTheme
+import com.example.tinderclone.util.DataPopulator
 import com.example.tinderclone.viewmodel.TCViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var db: FirebaseFirestore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Uncomment the line below to populate dummy data once, then comment it back out
+//        DataPopulator.populateUsers(db)
+
         enableEdgeToEdge()
         setContent {
             TinderCloneTheme {
                 val navController = rememberNavController()
-                val vm = hiltViewModel<TCViewModel>()
+                val vm: TCViewModel = hiltViewModel()
                 val screens = listOf(
                     Screen.Swipe,
                     Screen.Chat,
