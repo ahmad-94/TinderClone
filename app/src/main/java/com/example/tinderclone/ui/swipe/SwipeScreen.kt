@@ -1,6 +1,5 @@
 package com.example.tinderclone.ui.swipe
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,14 +17,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,27 +31,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.tinderclone.ui.components.CommonProgressSpinner
+import com.example.tinderclone.model.SwipeDirection
 import com.example.tinderclone.ui.components.TinderCard
 import com.example.tinderclone.viewmodel.TCViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun SwipeScreen(vm: TCViewModel) {
-    var profiles by remember { mutableStateOf(vm.cardsData.value) }
+    val profiles by vm.cardsData
+    val swipeTrigger by vm.swipeTrigger
     val matchProfile by vm.matchNotification
 
-    LaunchedEffect(Unit) {
-        if (!vm.isFirstTime.value) {
-            vm.inProgress.value = true
-            delay(1500)
-            vm.inProgress.value = false
-        }
-        vm.isFirstTime.value = false
-        vm.getCardsData()
-    }
+//    LaunchedEffect(Unit) {
+//        if (!vm.isFirstTime.value) {
+//            vm.inProgress.value = true
+//            delay(1500)
+//            vm.inProgress.value = false
+//        }
+//        vm.isFirstTime.value = true
+//        vm.getCardsData()
+//    }
 
-    LaunchedEffect(vm.cardsData.value) {
-        profiles = vm.cardsData.value
+    LaunchedEffect(Unit) {
+        vm.getCardsData()
     }
 
     // Match Dialog
@@ -111,66 +107,65 @@ fun SwipeScreen(vm: TCViewModel) {
                         TinderCard(
                             profile = profile,
                             onSwipeLeft = {
-                                vm.onDislike(profile.id!!)
-                                profiles = profiles.filter { it.id != profile.id }
+                                profile.id?.let { vm.onDislike(it) }
+                                vm.swipeTrigger.value = null
                             },
                             onSwipeRight = {
                                 vm.onLike(profile)
-                                profiles = profiles.filter { it.id != profile.id }
+                                vm.swipeTrigger.value = null
                             },
+                            swipeTrigger = if (profile == profiles.firstOrNull()) swipeTrigger else null,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 32.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { 
-                        if (profiles.isNotEmpty()) {
-                            val profile = profiles.last()
-                            vm.onDislike(profile.id!!)
-                            profiles = profiles.filter { it.id != profile.id }
-                        }
-                    },
-                    modifier = Modifier.size(64.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Red
-                    )
+            if (profiles.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dislike",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                    IconButton(
+                        onClick = {
+                            if (profiles.isNotEmpty() && swipeTrigger == null) {
+                                vm.swipeTrigger.value = SwipeDirection.Left
+                            }
+                        },
+                        modifier = Modifier.size(64.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Red
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dislike",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
 
-                IconButton(
-                    onClick = { 
-                        if (profiles.isNotEmpty()) {
-                            val profile = profiles.last()
-                            vm.onLike(profile)
-                            profiles = profiles.filter { it.id != profile.id }
-                        }
-                    },
-                    modifier = Modifier.size(64.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Green
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Like",
-                        modifier = Modifier.size(32.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            if (profiles.isNotEmpty() && swipeTrigger == null) {
+                                vm.swipeTrigger.value = SwipeDirection.Right
+                            }
+                        },
+                        modifier = Modifier.size(64.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Green
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Like",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             }
         }

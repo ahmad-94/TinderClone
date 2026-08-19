@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Uncomment the line below to populate dummy data once, then comment it back out
-//        DataPopulator.populateUsers(db)
+//         Uncomment the line below to populate dummy data once, then comment it back out
+        DataPopulator.populateUsers(db)
 
         enableEdgeToEdge()
         setContent {

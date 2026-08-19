@@ -11,7 +11,8 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.tinderclone.model.TinderProfile
-import com.example.tinderclone.model.UserData
+import com.example.tinderclone.model.SwipeDirection
+import com.example.tinderclone.data.remote.UserData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -35,9 +36,10 @@ class TCViewModel @Inject constructor(
 
     var inProgress = mutableStateOf(false)
     var signedIn = mutableStateOf(false)
-    var isFirstTime = mutableStateOf(false)
+
     var userData = mutableStateOf<UserData?>(null)
     var cardsData = mutableStateOf<List<TinderProfile>>(listOf())
+    var swipeTrigger = mutableStateOf<SwipeDirection?>(null)
     var matchNotification = mutableStateOf<TinderProfile?>(null)
 
     private val _errorFlow = MutableSharedFlow<Exception>()
@@ -66,6 +68,7 @@ class TCViewModel @Inject constructor(
         }
 
         inProgress.value = true
+        inProgress.value = true
         auth.createUserWithEmailAndPassword(email, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
@@ -76,7 +79,7 @@ class TCViewModel @Inject constructor(
                             .addOnSuccessListener {
                                 signedIn.value = true
                                 userData.value = user
-                                isFirstTime.value = true 
+                                inProgress.value = false
                                 inProgress.value = false
                             }
                             .addOnFailureListener {
@@ -102,11 +105,12 @@ class TCViewModel @Inject constructor(
         }
 
         inProgress.value = true
+        inProgress.value = true
         auth.signInWithEmailAndPassword(email, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     signedIn.value = true
-                    isFirstTime.value = true
+                    inProgress.value = false
                     getUserData(auth.currentUser?.uid)
                 } else {
                     onError(task.exception)
@@ -118,11 +122,13 @@ class TCViewModel @Inject constructor(
     private fun getUserData(uid: String?) {
         if (uid == null) return
         inProgress.value = true
+        inProgress.value = true
         db.collection("users").document(uid).get()
             .addOnSuccessListener { document ->
                 val data = document.toObject(UserData::class.java)
                 Log.d("TCViewModel", "Fetched User Data: $data")
                 userData.value = data
+                inProgress.value = false
                 inProgress.value = false
             }
             .addOnFailureListener {
@@ -141,6 +147,7 @@ class TCViewModel @Inject constructor(
         db.collection("users").document(uid).set(updateMap, com.google.firebase.firestore.SetOptions.merge())
             .addOnSuccessListener {
                 getUserData(uid)
+
             }
             .addOnFailureListener {
                 onError(it)
@@ -186,6 +193,7 @@ class TCViewModel @Inject constructor(
         val uid = auth.currentUser?.uid
         if (uid != null) {
             inProgress.value = true
+            inProgress.value = true
             // First, get the list of users this user has already swiped on
             db.collection("users").document(uid).collection("swipes").get()
                 .addOnSuccessListener { swipeResult ->
@@ -210,6 +218,7 @@ class TCViewModel @Inject constructor(
                             }
                             cardsData.value = profiles
                             inProgress.value = false
+                            inProgress.value = false
                         }
                         .addOnFailureListener {
                             onError(it)
@@ -225,6 +234,10 @@ class TCViewModel @Inject constructor(
         val uid = auth.currentUser?.uid ?: return
         val swipedUid = swipedProfile.id
         if (swipedUid.isNullOrBlank()) return
+
+        // Remove from list immediately or after animation?
+        // Since the UI uses swipeTrigger, we should remove it when the animation is done.
+        cardsData.value = cardsData.value.filter { it.id != swipedUid }
 
         // 1. Save the "Like" in the current user's swipes sub-collection
         val swipeData = mapOf("type" to "LIKE", "timestamp" to FieldValue.serverTimestamp())
@@ -244,6 +257,9 @@ class TCViewModel @Inject constructor(
     fun onDislike(swipedUid: String) {
         if (swipedUid.isBlank()) return
         val uid = auth.currentUser?.uid ?: return
+
+        cardsData.value = cardsData.value.filter { it.id != swipedUid }
+
         val swipeData = mapOf("type" to "DISLIKE", "timestamp" to FieldValue.serverTimestamp())
         db.collection("users").document(uid).collection("swipes").document(swipedUid).set(swipeData)
     }
@@ -272,6 +288,8 @@ class TCViewModel @Inject constructor(
         auth.signOut()
         signedIn.value = false
         userData.value = null
+        cardsData.value = emptyList()
+        swipeTrigger.value = null
     }
 
     private fun onError(exception: Exception?) {

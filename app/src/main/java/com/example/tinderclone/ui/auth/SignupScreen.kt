@@ -39,11 +39,11 @@ import com.stevdzasan.messagebar.rememberMessageBarState
 fun SignupScreen(navController: NavController, vm: TCViewModel) {
     val messageBarState = rememberMessageBarState()
 
-    LaunchedEffect(Unit) {
-        vm.inProgress.value = true
-        delay(1500)
-        vm.inProgress.value = false
-    }
+//    LaunchedEffect(Unit) {
+//        vm.inProgress.value = true
+//        delay(1500)
+//        vm.inProgress.value = false
+//    }
 
     LaunchedEffect(Unit) {
         vm.errorFlow.collect { ex ->

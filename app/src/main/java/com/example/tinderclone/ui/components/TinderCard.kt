@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.tinderclone.model.SwipeDirection
 import com.example.tinderclone.model.TinderProfile
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.roundToInt
 
 @Composable
@@ -43,10 +45,25 @@ fun TinderCard(
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier,
+    swipeTrigger: SwipeDirection? = null
 ) {
     val offsetX = remember { Animatable(0f) }
     val rotation = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(swipeTrigger) {
+        swipeTrigger?.let { direction ->
+            if (direction == SwipeDirection.Left) {
+                launch { rotation.animateTo(-50f, tween(300)) }
+                offsetX.animateTo(-1000f, tween(300))
+                onSwipeLeft()
+            } else {
+                launch { rotation.animateTo(50f, tween(300)) }
+                offsetX.animateTo(1000f, tween(300))
+                onSwipeRight()
+            }
+        }
+    }
 
     Card(
         modifier = modifier
